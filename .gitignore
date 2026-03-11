@@ -17,3 +17,6 @@ frontend/.env
 
 # VS Code
 .vscode/
+
+#text
+.env

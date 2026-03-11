@@ -1,14 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
-from openai import OpenAI
 from models import InterviewRequest
 from data import interview_data
-import os
+import random
 
 load_dotenv()
-
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 app = FastAPI()
 
@@ -20,11 +17,116 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+def generate_mock_ai_text(request: InterviewRequest, interview_type_data: dict) -> str:
+    topics = interview_type_data.get("topics", [])
+    algorithms = interview_type_data.get("algorithms", [])
+    behavioral = interview_type_data.get("behavioral", [])
+    system_design = interview_type_data.get("system_design", [])
+
+    question_pool = []
+
+    for topic in topics:
+        question_pool.append(f"Explain the concept of {topic} and where it is used.")
+        question_pool.append(f"What are the main challenges in working with {topic}?")
+
+    for algo in algorithms:
+        question_pool.append(f"How would you solve a problem using {algo}?")
+        question_pool.append(f"What is the time complexity of {algo}, and when would you use it?")
+
+    for behavior in behavioral:
+        question_pool.append(f"Tell me about a time when you demonstrated {behavior}.")
+        question_pool.append(f"Describe a situation where {behavior} helped you succeed.")
+
+    for design in system_design:
+        question_pool.append(f"How would you design a system for {design}?")
+        question_pool.append(f"What are the key trade-offs when designing {design}?")
+
+    if len(question_pool) >= 5:
+        selected_questions = random.sample(question_pool, 5)
+    else:
+        selected_questions = question_pool[:]
+
+    while len(selected_questions) < 5:
+        selected_questions.append("Tell me about a challenging technical problem you solved.")
+
+    study_plan_days = []
+
+    if topics:
+        study_plan_days.append(f"Day 1: Review core topics such as {', '.join(topics[:3])}.")
+    else:
+        study_plan_days.append("Day 1: Review the fundamentals related to the role.")
+
+    if algorithms:
+        study_plan_days.append(f"Day 2: Practice algorithms like {', '.join(algorithms[:3])}.")
+    else:
+        study_plan_days.append("Day 2: Practice problem-solving and coding questions.")
+
+    if system_design:
+        study_plan_days.append(f"Day 3: Study system design concepts such as {', '.join(system_design[:2])}.")
+    else:
+        study_plan_days.append("Day 3: Focus on architecture and design basics.")
+
+    if behavioral:
+        study_plan_days.append(f"Day 4: Prepare behavioral stories around {', '.join(behavioral[:3])}.")
+    else:
+        study_plan_days.append("Day 4: Prepare common HR and behavioral interview answers.")
+
+    study_plan_days.append("Day 5: Take a mock interview and answer questions aloud.")
+    study_plan_days.append("Day 6: Review weak areas and revise important concepts.")
+    study_plan_days.append("Day 7: Do a light revision and focus on confidence and clarity.")
+
+    tips = [
+        "Practice answering clearly and keep your explanations structured.",
+        "Use real examples from projects or coursework whenever possible.",
+        "Revise fundamentals before moving to advanced topics."
+    ]
+
+    if request.interview_type.lower() == "behavioral":
+        tips = [
+            "Use the STAR method for answering behavioral questions.",
+            "Prepare examples that show leadership, teamwork, and problem-solving.",
+            "Keep your answers concise but specific."
+        ]
+    elif request.interview_type.lower() == "system_design":
+        tips = [
+            "Start with requirements clarification before jumping into architecture.",
+            "Discuss scalability, trade-offs, and database choices clearly.",
+            "Use diagrams or step-by-step explanation while answering."
+        ]
+    elif request.interview_type.lower() == "coding":
+        tips = [
+            "Clarify the problem before writing code.",
+            "Explain brute force first, then optimize.",
+            "Always discuss time and space complexity."
+        ]
+
+    formatted_output = f"""
+Interview Questions
+1. {selected_questions[0]}
+2. {selected_questions[1]}
+3. {selected_questions[2]}
+4. {selected_questions[3]}
+5. {selected_questions[4]}
+
+1-Week Study Plan
+{chr(10).join(study_plan_days)}
+
+Preparation Tips
+1. {tips[0]}
+2. {tips[1]}
+3. {tips[2]}
+"""
+
+    return formatted_output.strip()
+
+
 @app.get("/")
 def home():
     return {"message": "Interview Prep API is running"}
 
-@app.post("/recommend")
+
+@app.post("/recommend-prep")
 def recommend_prep(request: InterviewRequest):
     company_data = interview_data.get(request.company)
     if not company_data:
@@ -42,42 +144,7 @@ def recommend_prep(request: InterviewRequest):
     if not interview_type_data:
         return {"error": "Interview type not found"}
 
-    prompt = f"""
-You are an interview preparation coach.
-
-Create:
-1. 5 realistic interview questions
-2. A short 1-week study plan
-3. 3 important preparation tips
-
-Candidate target:
-- Company: {request.company}
-- Role: {request.role}
-- Level: {request.level}
-- Interview Type: {request.interview_type}
-
-Base preparation data:
-Topics: {interview_type_data.get("topics", [])}
-Algorithms: {interview_type_data.get("algorithms", [])}
-Behavioral: {interview_type_data.get("behavioral", [])}
-System Design: {interview_type_data.get("system_design", [])}
-
-Format the output clearly with headings:
-Interview Questions
-1-Week Study Plan
-Preparation Tips
-"""
-
-    ai_text = ""
-
-    try:
-        response = client.responses.create(
-            model="gpt-4.1-mini",
-            input=prompt
-        )
-        ai_text = response.output_text
-    except Exception as e:
-        ai_text = f"AI generation failed: {str(e)}"
+    ai_text = generate_mock_ai_text(request, interview_type_data)
 
     return {
         "company": request.company,
