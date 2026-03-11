@@ -66,7 +66,7 @@ interview-prep-app
 Clone the repository:
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/interview-prep-app.git
+git clone https://github.com/Vilas2809/interview-prep-app.git
 cd interview-prep-app
 ```
 
