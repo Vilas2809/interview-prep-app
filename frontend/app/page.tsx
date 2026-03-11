@@ -138,6 +138,22 @@ export default function Home() {
               <li key={i}>{t}</li>
             ))}
           </ul>
+          <h2 style={{ fontWeight: "bold", textDecoration: "underline", marginTop: "20px" }}>
+            AI Generated Questions & Study Plan
+          </h2>
+
+          <div
+            style={{
+              marginTop: "30px",
+              padding: "20px",
+              border: "1px solid #ddd",
+              borderRadius: "10px",
+              maxWidth: "900px",
+              width: "100%",
+            }}
+          >
+            {result?.ai_generated || "AI output will appear here once OpenAI billing is active."}
+          </div>
         </div>
       )}
     </main>
