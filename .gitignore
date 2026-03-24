@@ -1,22 +1,16 @@
 # Python
-backend/.venv/
 __pycache__/
 *.pyc
-
-# Node
-frontend/node_modules/
-frontend/.next/
-
-# Environment variables
 .env
-backend/.env
-frontend/.env
+venv/
 
-# macOS
+# Node / Next.js
+node_modules/
+.next/
+out/
+
+# OS
 .DS_Store
 
-# VS Code
-.vscode/
-
-#text
-.env
+# Logs
+*.log

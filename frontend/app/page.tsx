@@ -1,296 +1,421 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 
-type PrepPlan = {
-  topics?: string[];
-  algorithms?: string[];
-  behavioral?: string[];
-  system_design?: string[];
-};
+const companies = [
+  "General",
+  "Google",
+  "Amazon",
+  "Microsoft",
+  "Meta",
+  "Apple",
+  "Netflix",
+  "Tesla",
+];
 
-type ApiResponse = {
-  company?: string;
-  role?: string;
-  level?: string;
-  interview_type?: string;
-  prep_plan?: PrepPlan;
-};
+const interviewTypes = ["Technical", "HR", "Behavioral", "DSA", "OOP"];
+const experienceLevels = ["Entry Level", "Mid Level", "Senior Level"];
+
+declare global {
+  interface Window {
+    webkitSpeechRecognition: any;
+    SpeechRecognition: any;
+  }
+}
 
 export default function Home() {
-  const [company, setCompany] = useState("Amazon");
-  const [role, setRole] = useState("Software Engineer");
-  const [level, setLevel] = useState("Entry Level");
-  const [interviewType, setInterviewType] = useState("Coding");
-  const [result, setResult] = useState<ApiResponse | null>(null);
+  const [company, setCompany] = useState("General");
+  const [interviewType, setInterviewType] = useState("Technical");
+  const [experienceLevel, setExperienceLevel] = useState("Entry Level");
+  const [started, setStarted] = useState(false);
+  const [currentQuestion, setCurrentQuestion] = useState("");
+  const [answer, setAnswer] = useState("");
+  const [history, setHistory] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [isListening, setIsListening] = useState(false);
 
-  const getPrepPlan = async () => {
+  const recognitionRef = useRef<any>(null);
+
+  const startListening = () => {
+    setError("");
+
+    const SpeechRecognition =
+      window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      setError("Speech recognition is not supported in this browser. Use Chrome.");
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognitionRef.current = recognition;
+
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = "en-US";
+
+    recognition.onstart = () => setIsListening(true);
+
+    recognition.onresult = (event: any) => {
+      let transcript = "";
+      for (let i = 0; i < event.results.length; i++) {
+        transcript += event.results[i][0].transcript;
+      }
+      setAnswer(transcript);
+    };
+
+    recognition.onerror = () => {
+      setError("Voice input failed. Please try again.");
+      setIsListening(false);
+    };
+
+    recognition.onend = () => setIsListening(false);
+
+    recognition.start();
+  };
+
+  const stopListening = () => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+    }
+    setIsListening(false);
+  };
+
+  const startInterview = async () => {
+    setLoading(true);
+    setError("");
+    setHistory([]);
+    setAnswer("");
+    setStarted(false);
+    stopListening();
+
     try {
-      setLoading(true);
-
-      const response = await fetch("http://127.0.0.1:8000/recommend-prep", {
+      const res = await fetch("http://127.0.0.1:8000/mock-interview/start", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
           company,
-          role,
-          level,
           interview_type: interviewType,
+          experience_level: experienceLevel,
         }),
       });
 
-      const data = await response.json();
-      console.log("Backend response:", data);
-      setResult(data);
-    } catch (error) {
-      console.error("Error fetching prep plan:", error);
+      const data = await res.json();
 
-      setResult({
-        company,
-        role,
-        level,
-        interview_type: interviewType,
-        prep_plan: {
-          topics: ["Arrays", "Strings", "Hash Maps", "Linked Lists", "Trees", "Graphs"],
-          algorithms: ["Binary Search", "Two Pointers", "Sliding Window", "BFS", "DFS", "Recursion"],
-          behavioral: ["Growth mindset", "Team collaboration", "Communication"],
-          system_design: ["OOP basics", "API basics", "Database basics"],
-        },
-      });
+      if (!res.ok) {
+        throw new Error(data.detail || "Failed to start interview.");
+      }
+
+      setCurrentQuestion(data.question);
+      setHistory([`AI Question: ${data.question}`]);
+      setStarted(true);
+    } catch (err: any) {
+      setError(err.message || "Something went wrong.");
     } finally {
       setLoading(false);
     }
   };
 
+  const submitAnswer = async () => {
+    if (!answer.trim()) {
+      setError("Please speak or type your answer first.");
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+    stopListening();
+
+    try {
+      const res = await fetch("http://127.0.0.1:8000/mock-interview/answer", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          company,
+          interview_type: interviewType,
+          experience_level: experienceLevel,
+          current_question: currentQuestion,
+          user_answer: answer,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.detail || "Failed to submit answer.");
+      }
+
+      const resultText = data.result || "";
+      const nextQuestionMatch = resultText.match(/Next Question:\s*(.*)/i);
+      const nextQuestion = nextQuestionMatch ? nextQuestionMatch[1].trim() : "";
+
+      setHistory((prev) => [
+        ...prev,
+        `Your Answer: ${answer}`,
+        `AI Feedback:\n${resultText}`,
+        ...(nextQuestion ? [`AI Question: ${nextQuestion}`] : []),
+      ]);
+
+      setAnswer("");
+
+      if (nextQuestion) {
+        setCurrentQuestion(nextQuestion);
+      }
+    } catch (err: any) {
+      setError(err.message || "Something went wrong.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const skipQuestion = async () => {
+    if (!currentQuestion.trim()) {
+      setError("No current question to skip.");
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+    stopListening();
+
+    try {
+      const res = await fetch("http://127.0.0.1:8000/mock-interview/next", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          company,
+          interview_type: interviewType,
+          experience_level: experienceLevel,
+          previous_question: currentQuestion,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.detail || "Failed to get next question.");
+      }
+
+      const nextQuestion = data.question || "";
+
+      setHistory((prev) => [
+        ...prev,
+        `Skipped Question: ${currentQuestion}`,
+        `AI Question: ${nextQuestion}`,
+      ]);
+
+      setCurrentQuestion(nextQuestion);
+      setAnswer("");
+    } catch (err: any) {
+      setError(err.message || "Something went wrong.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const resetInterview = () => {
+    stopListening();
+    setStarted(false);
+    setCurrentQuestion("");
+    setAnswer("");
+    setHistory([]);
+    setError("");
+  };
+
   return (
-    <main style={{ padding: "40px", fontFamily: "Arial, sans-serif" }}>
-      <h1 style={{ marginBottom: "30px" }}>Interview Preparation Generator</h1>
+    <main className="page">
+      <div className="backgroundGlow glowOne"></div>
+      <div className="backgroundGlow glowTwo"></div>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(4, minmax(180px, 1fr))",
-          gap: "20px",
-          marginBottom: "20px",
-        }}
-      >
-        <div>
-          <label style={{ display: "block", marginBottom: "8px", fontWeight: "bold" }}>
-            Company
-          </label>
-          <select
-            value={company}
-            onChange={(e) => setCompany(e.target.value)}
-            style={{
-              width: "100%",
-              padding: "10px",
-              borderRadius: "8px",
-              border: "1px solid #ccc",
-            }}
-          >
-            <option value="Amazon">Amazon</option>
-            <option value="Google">Google</option>
-            <option value="Microsoft">Microsoft</option>
-          </select>
-        </div>
+      <div className="container">
+        <header className="hero">
+          <div className="badge">AI-Powered Mock Interview</div>
+          <h1 className="title">Mock Interview AI</h1>
+          <p className="subtitle">
+            Practice with realistic interview questions, voice input, feedback,
+            scoring, and smarter question progression.
+          </p>
+        </header>
 
-        <div>
-          <label style={{ display: "block", marginBottom: "8px", fontWeight: "bold" }}>
-            Role
-          </label>
-          <select
-            value={role}
-            onChange={(e) => setRole(e.target.value)}
-            style={{
-              width: "100%",
-              padding: "10px",
-              borderRadius: "8px",
-              border: "1px solid #ccc",
-            }}
-          >
-            <option value="Software Engineer">Software Engineer</option>
-            <option value="AI Engineer">AI Engineer</option>
-            <option value="Data Scientist">Data Scientist</option>
-          </select>
-        </div>
+        <section className="panel">
+          <div className="panelHeader">
+            <div>
+              <h2 className="panelTitle">Interview Setup</h2>
+              <p className="panelText">
+                Pick your target company, interview style, and experience level.
+              </p>
+            </div>
+          </div>
 
-        <div>
-          <label style={{ display: "block", marginBottom: "8px", fontWeight: "bold" }}>
-            Level
-          </label>
-          <select
-            value={level}
-            onChange={(e) => setLevel(e.target.value)}
-            style={{
-              width: "100%",
-              padding: "10px",
-              borderRadius: "8px",
-              border: "1px solid #ccc",
-            }}
-          >
-            <option value="Entry Level">Entry Level</option>
-            <option value="Mid Level">Mid Level</option>
-            <option value="Senior Level">Senior Level</option>
-          </select>
-        </div>
+          <div className="grid">
+            <div>
+              <label className="label">Company</label>
+              <select
+                className="input"
+                value={company}
+                onChange={(e) => setCompany(e.target.value)}
+                disabled={started}
+              >
+                {companies.map((item) => (
+                  <option key={item} value={item}>
+                    {item}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-        <div>
-          <label style={{ display: "block", marginBottom: "8px", fontWeight: "bold" }}>
-            Interview Type
-          </label>
-          <select
-            value={interviewType}
-            onChange={(e) => setInterviewType(e.target.value)}
-            style={{
-              width: "100%",
-              padding: "10px",
-              borderRadius: "8px",
-              border: "1px solid #ccc",
-            }}
-          >
-            <option value="Coding">Coding</option>
-            <option value="System Design">System Design</option>
-            <option value="Behavioral">Behavioral</option>
-            <option value="ML/AI">ML/AI</option>
-          </select>
-        </div>
-      </div>
+            <div>
+              <label className="label">Interview Type</label>
+              <select
+                className="input"
+                value={interviewType}
+                onChange={(e) => setInterviewType(e.target.value)}
+                disabled={started}
+              >
+                {interviewTypes.map((item) => (
+                  <option key={item} value={item}>
+                    {item}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-      <button
-        onClick={getPrepPlan}
-        style={{
-          padding: "12px 20px",
-          backgroundColor: "#111827",
-          color: "white",
-          border: "none",
-          borderRadius: "8px",
-          cursor: "pointer",
-          marginBottom: "30px",
-        }}
-      >
-        {loading ? "Generating..." : "Generate"}
-      </button>
+            <div className="gridFull">
+              <label className="label">Experience Level</label>
+              <select
+                className="input"
+                value={experienceLevel}
+                onChange={(e) => setExperienceLevel(e.target.value)}
+                disabled={started}
+              >
+                {experienceLevels.map((item) => (
+                  <option key={item} value={item}>
+                    {item}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
 
-      <div
-        style={{
-          display: "flex",
-          gap: "40px",
-          alignItems: "flex-start",
-        }}
-      >
-        <div
-          style={{
-            width: "260px",
-            borderRight: "1px solid #ddd",
-            paddingRight: "20px",
-          }}
-        >
-          <h3>Topics</h3>
-          <p>Arrays</p>
-          <p>Strings</p>
-          <p>Linked Lists</p>
-          <p>Trees</p>
-          <p>Graphs</p>
-          <p>Hash Maps</p>
+          {!started ? (
+            <button className="primaryButton" onClick={startInterview} disabled={loading}>
+              {loading ? "Starting..." : "Start Mock Interview"}
+            </button>
+          ) : (
+            <div className="topActionRow">
+              <button className="secondaryActionButton" onClick={resetInterview} type="button">
+                Reset Interview
+              </button>
+            </div>
+          )}
 
-          <h3 style={{ marginTop: "20px" }}>Algorithms</h3>
-          <p>Binary Search</p>
-          <p>DFS</p>
-          <p>BFS</p>
-          <p>Sliding Window</p>
-          <p>Recursion</p>
+          {error && <p className="error">{error}</p>}
+        </section>
 
-          <h3 style={{ marginTop: "20px" }}>Behavioral</h3>
-          <p>Growth mindset</p>
-          <p>Team collaboration</p>
-          <p>Communication</p>
+        {started && (
+          <>
+            <section className="panel">
+              <div className="questionCard">
+                <div className="rowBetween">
+                  <div>
+                    <p className="miniLabel">Current Question</p>
+                    <h2 className="sectionTitle">Answer this question</h2>
+                  </div>
+                </div>
 
-          <h3 style={{ marginTop: "20px" }}>System Design</h3>
-          <p>OOP basics</p>
-          <p>API basics</p>
-          <p>Database basics</p>
-        </div>
+                <p className="questionText">{currentQuestion}</p>
+              </div>
 
-        <div style={{ flex: 1 }}>
-          <h2 style={{ marginTop: 0, marginBottom: "20px" }}>
-            AI Generated Questions & Study Plan
-          </h2>
+              <div className="voicePanel">
+                <div className="rowBetween">
+                  <div>
+                    <p className="miniLabel">Your Response</p>
+                    <h2 className="sectionTitle">Speak or type your answer</h2>
+                  </div>
 
-          <div
-            style={{
-              border: "1px solid #ddd",
-              borderRadius: "12px",
-              padding: "20px",
-              backgroundColor: "#ffffff",
-              boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
-              maxWidth: "700px",
-            }}
-          >
-            {!result ? (
-              <p>Click Generate to get interview questions and a study plan.</p>
-            ) : (
-              <div>
-                <h3>Topics</h3>
-                {Array.isArray(result?.prep_plan?.topics) && result.prep_plan!.topics!.length > 0 ? (
-                  <ul>
-                    {result.prep_plan!.topics!.map((topic, index) => (
-                      <li key={index} style={{ marginBottom: "8px" }}>
-                        {topic}
-                      </li>
-                    ))}
-                  </ul>
+                  <button
+                    className={`micMainButton ${isListening ? "micActive" : ""}`}
+                    onClick={isListening ? stopListening : startListening}
+                    type="button"
+                  >
+                    {isListening ? "⏹ Stop Mic" : "🎤 Speak Answer"}
+                  </button>
+                </div>
+
+                <textarea
+                  className="textarea"
+                  placeholder="Speak with the mic or type your answer here..."
+                  value={answer}
+                  onChange={(e) => setAnswer(e.target.value)}
+                />
+
+                <p className="helperText">
+                  {isListening
+                    ? "Listening... speak now."
+                    : "Use the mic button for voice input or type manually."}
+                </p>
+
+                <div className="buttonRow">
+                  <button
+                    className="primaryButton halfButton"
+                    onClick={submitAnswer}
+                    disabled={loading}
+                  >
+                    {loading ? "Submitting..." : "Submit Answer"}
+                  </button>
+
+                  <button
+                    className="skipButton halfButton"
+                    onClick={skipQuestion}
+                    disabled={loading}
+                  >
+                    {loading ? "Loading..." : "Skip / Next Question"}
+                  </button>
+                </div>
+              </div>
+            </section>
+
+            <section className="panel">
+              <div className="panelHeader">
+                <div>
+                  <h2 className="panelTitle">Interview History</h2>
+                  <p className="panelText">
+                    Review asked questions, your answers, and feedback.
+                  </p>
+                </div>
+              </div>
+
+              <div className="historyBox">
+                {history.length === 0 ? (
+                  <p className="placeholder">Your mock interview history will appear here.</p>
                 ) : (
-                  <p>No topics available.</p>
-                )}
+                  history.map((item, index) => {
+                    const className = item.startsWith("AI Question:")
+                      ? "historyItem questionHistory"
+                      : item.startsWith("Your Answer:")
+                      ? "historyItem answerHistory"
+                      : item.startsWith("AI Feedback:")
+                      ? "historyItem feedbackHistory"
+                      : "historyItem skipHistory";
 
-                <h3 style={{ marginTop: "25px" }}>Algorithms</h3>
-                {Array.isArray(result?.prep_plan?.algorithms) &&
-                result.prep_plan!.algorithms!.length > 0 ? (
-                  <ul>
-                    {result.prep_plan!.algorithms!.map((algo, index) => (
-                      <li key={index} style={{ marginBottom: "8px" }}>
-                        {algo}
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p>No algorithms available.</p>
-                )}
-
-                <h3 style={{ marginTop: "25px" }}>Behavioral</h3>
-                {Array.isArray(result?.prep_plan?.behavioral) &&
-                result.prep_plan!.behavioral!.length > 0 ? (
-                  <ul>
-                    {result.prep_plan!.behavioral!.map((item, index) => (
-                      <li key={index} style={{ marginBottom: "8px" }}>
+                    return (
+                      <pre key={index} className={className}>
                         {item}
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p>No behavioral topics available.</p>
-                )}
-
-                <h3 style={{ marginTop: "25px" }}>System Design</h3>
-                {Array.isArray(result?.prep_plan?.system_design) &&
-                result.prep_plan!.system_design!.length > 0 ? (
-                  <ul>
-                    {result.prep_plan!.system_design!.map((item, index) => (
-                      <li key={index} style={{ marginBottom: "8px" }}>
-                        {item}
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p>No system design topics available.</p>
+                      </pre>
+                    );
+                  })
                 )}
               </div>
-            )}
-          </div>
-        </div>
+            </section>
+          </>
+        )}
       </div>
     </main>
   );

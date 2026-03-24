@@ -1,7 +1,8 @@
 from pydantic import BaseModel
 
 class InterviewRequest(BaseModel):
-    company: str
     role: str
-    level: str
+    experience: str
     interview_type: str
+    message: str
+    company: str   # ✅ NEW FIELD
