@@ -24,7 +24,11 @@ app = FastAPI(title="Interview Prep API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://interview-prep-app-steel.vercel.app"],
+    allow_origins=[
+        "https://interview-prep-app-steel.vercel.app",
+        "https://interview-prep-r3cxm4714-vilas2809s-projects.vercel.app",
+        "http://localhost:3000",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -109,7 +113,7 @@ def get_experience_levels():
     return {"experience_levels": EXPERIENCE_LEVELS}
 
 
-@app.post("/mock-interview/start")
+@app.post("/interview")
 def start_mock_interview(request: MockInterviewStartRequest):
     company = request.company.strip() if request.company else "General"
     interview_type = (
