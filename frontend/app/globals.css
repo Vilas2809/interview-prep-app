@@ -1,136 +1,89 @@
 @import "tailwindcss";
 
-/* Root Theme Colors */
-:root {
-  --background: #0a0f1c;
-  --background-secondary: #0d1324;
-  --foreground: #f8fafc;
-  --muted: #94a3b8;
-  --border: rgba(255, 255, 255, 0.08);
-}
-
-/* Reset */
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
-html {
-  scroll-behavior: smooth;
-}
-
-/* Body Styling */
 body {
-  min-height: 100vh;
-  background:
-    radial-gradient(circle at top, rgba(59, 130, 246, 0.15), transparent 30%),
-    radial-gradient(circle at bottom, rgba(16, 185, 129, 0.1), transparent 30%),
-    linear-gradient(180deg, #0a0f1c 0%, #070b16 100%);
-  color: var(--foreground);
-  font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI",
-    Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
-  -webkit-font-smoothing: antialiased;
+  background: #0b0f17;
+  color: white;
+  font-family: system-ui, -apple-system, sans-serif;
 }
 
-/* Typography */
-h1, h2, h3 {
-  letter-spacing: -0.02em;
+/* layout */
+.container {
+  max-width: 900px;
+  margin: auto;
+  padding: 40px 20px;
 }
 
-p {
+/* title */
+.title {
+  font-size: 36px;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.subtitle {
+  color: #9ca3af;
+  margin-bottom: 30px;
+}
+
+/* inputs */
+.select,
+.textarea {
+  width: 100%;
+  background: #111827;
+  border: 1px solid #1f2937;
+  border-radius: 10px;
+  padding: 12px;
+  color: white;
+}
+
+.select:focus,
+.textarea:focus {
+  outline: none;
+  border-color: #3b82f6;
+}
+
+/* buttons */
+.button {
+  background: #2563eb;
+  padding: 12px;
+  border-radius: 10px;
+  font-weight: 600;
+  width: 100%;
+}
+
+.button:hover {
+  background: #1d4ed8;
+}
+
+.row {
+  display: flex;
+  gap: 10px;
+}
+
+.half {
+  flex: 1;
+}
+
+/* question */
+.question {
+  margin-top: 30px;
+  font-size: 18px;
   line-height: 1.6;
 }
 
-/* Inputs / Buttons / Select */
-button,
-input,
-textarea,
-select {
-  font: inherit;
-  outline: none;
-  border: none;
+/* chat history */
+.chat {
+  margin-top: 20px;
 }
 
-/* Placeholder */
-::placeholder {
-  color: #6b7280;
+.chat-item {
+  margin-bottom: 12px;
 }
 
-/* Scrollbar Styling */
-::-webkit-scrollbar {
-  width: 8px;
+.chat-ai {
+  color: #60a5fa;
 }
 
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.35);
-  border-radius: 9999px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(148, 163, 184, 0.55);
-}
-
-/* Selection Highlight */
-::selection {
-  background: rgba(59, 130, 246, 0.4);
-  color: #fff;
-}
-
-/* Glass Effect Utility */
-.glass {
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border: 1px solid var(--border);
-}
-
-/* Card */
-.card {
-  border-radius: 20px;
-  border: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.03);
-}
-
-/* Smooth Transitions */
-* {
-  transition: all 0.2s ease;
-}
-
-/* Focus Ring (important for accessibility + modern feel) */
-:focus-visible {
-  outline: 2px solid rgba(59, 130, 246, 0.6);
-  outline-offset: 2px;
-}
-
-/* Text Utilities */
-.text-muted {
-  color: var(--muted);
-}
-
-/* Button Hover Improvements */
-button:hover {
-  transform: translateY(-1px);
-}
-
-/* Prevent textarea resize glitch */
-textarea {
-  resize: none;
-}
-
-/* Fix select arrow alignment (optional improvement) */
-select {
-  appearance: none;
-  background-image: none;
-}
-
-/* Mobile improvements */
-@media (max-width: 768px) {
-  body {
-    font-size: 14px;
-  }
+.chat-user {
+  color: #22c55e;
 }
