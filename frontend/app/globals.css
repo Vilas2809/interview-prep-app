@@ -1,3 +1,5 @@
+@import "tailwindcss";
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -19,6 +21,11 @@
   --soft: #0f172a;
 }
 
+html,
+body {
+  min-height: 100%;
+}
+
 body {
   background:
     radial-gradient(circle at top left, rgba(37, 99, 235, 0.2), transparent 25%),
@@ -26,6 +33,13 @@ body {
     linear-gradient(180deg, #020617 0%, #07111f 100%);
   color: var(--text);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
 }
 
 .page {
@@ -403,12 +417,55 @@ body {
   margin-top: 18px;
 }
 
+.feedbackGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  margin-top: 18px;
+}
+
+.feedbackCard {
+  background: rgba(2, 6, 23, 0.72);
+  border: 1px solid rgba(71, 85, 105, 0.45);
+  border-radius: 20px;
+  padding: 20px;
+}
+
+.feedbackFull {
+  grid-column: 1 / -1;
+}
+
+.feedbackLabel {
+  color: #93c5fd;
+  font-size: 13px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 10px;
+}
+
+.feedbackValue {
+  color: #e2e8f0;
+  line-height: 1.8;
+  white-space: pre-wrap;
+}
+
+.scoreValue {
+  font-size: 38px;
+  font-weight: 800;
+  color: white;
+}
+
 @media (max-width: 768px) {
   .title {
     font-size: 36px;
   }
 
   .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .feedbackGrid {
     grid-template-columns: 1fr;
   }
 

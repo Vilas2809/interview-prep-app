@@ -58,12 +58,19 @@ export default function Home() {
         setInterviewTypes(interviewTypesData.interview_types || []);
         setExperienceLevels(experienceLevelsData.experience_levels || []);
       } catch {
-        setError("Failed to load dropdown data.");
+        setError("Failed to load interview settings.");
       }
     };
 
     loadDropdownData();
   }, [API_URL]);
+
+  const roleLabels: Record<string, string> = {
+    SE: "Software Engineer",
+    SD: "Software Developer",
+    AI: "AI Engineer",
+    NE: "Network Engineer",
+  };
 
   const resetInterview = () => {
     setCurrentQuestion("");
@@ -80,9 +87,7 @@ export default function Home() {
   };
 
   const stopListening = () => {
-    if (recognitionRef.current) {
-      recognitionRef.current.stop();
-    }
+    if (recognitionRef.current) recognitionRef.current.stop();
     setIsListening(false);
   };
 
@@ -287,32 +292,29 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-[#0b1020] via-[#121a33] to-[#0f172a] text-white p-6">
-      <div className="max-w-5xl mx-auto">
-        <div className="text-center mb-8">
-          <span className="inline-block px-4 py-2 rounded-full border border-blue-400/30 bg-blue-500/10 text-sm font-medium mb-4">
-            AI-Powered Mock Interview
-          </span>
-          <h1 className="text-5xl font-extrabold mb-4">Mock Interview AI</h1>
-          <p className="text-lg text-gray-300">
-            Practice with realistic interview questions, voice input, feedback,
-            scoring, and smarter question progression.
-          </p>
-        </div>
+    <main className="min-h-screen bg-[#0b1020] text-white">
+      <div className="mx-auto flex min-h-screen max-w-7xl gap-6 px-4 py-6 md:px-8">
+        <aside className="hidden w-80 shrink-0 rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur-xl lg:block">
+          <div className="mb-6">
+            <div className="mb-2 inline-flex rounded-full border border-blue-400/20 bg-blue-500/10 px-3 py-1 text-xs font-medium text-blue-300">
+              AI-Powered Mock Interview
+            </div>
+            <h1 className="text-3xl font-bold leading-tight">Mock Interview AI</h1>
+            <p className="mt-2 text-sm text-gray-300">
+              Practice technical, behavioral, and role-based questions with live
+              feedback.
+            </p>
+          </div>
 
-        <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-md p-6 mb-6">
-          <h2 className="text-3xl font-bold mb-2">Interview Setup</h2>
-          <p className="text-gray-300 mb-6">
-            Pick your target company, role, interview style, and experience level.
-          </p>
-
-          <div className="grid md:grid-cols-2 gap-4 mb-4">
+          <div className="space-y-4">
             <div>
-              <label className="block mb-2 font-semibold">Company</label>
+              <label className="mb-2 block text-sm font-medium text-gray-300">
+                Company
+              </label>
               <select
                 value={company}
                 onChange={(e) => setCompany(e.target.value)}
-                className="w-full rounded-xl bg-[#111827] border border-white/10 px-4 py-3"
+                className="w-full rounded-2xl border border-white/10 bg-[#111827] px-4 py-3 outline-none"
               >
                 {companies.map((item) => (
                   <option key={item} value={item}>
@@ -323,26 +325,30 @@ export default function Home() {
             </div>
 
             <div>
-              <label className="block mb-2 font-semibold">Role</label>
+              <label className="mb-2 block text-sm font-medium text-gray-300">
+                Role
+              </label>
               <select
                 value={role}
                 onChange={(e) => setRole(e.target.value)}
-                className="w-full rounded-xl bg-[#111827] border border-white/10 px-4 py-3"
+                className="w-full rounded-2xl border border-white/10 bg-[#111827] px-4 py-3 outline-none"
               >
                 {roles.map((item) => (
                   <option key={item} value={item}>
-                    {item}
+                    {roleLabels[item] || item}
                   </option>
                 ))}
               </select>
             </div>
 
             <div>
-              <label className="block mb-2 font-semibold">Interview Type</label>
+              <label className="mb-2 block text-sm font-medium text-gray-300">
+                Interview Type
+              </label>
               <select
                 value={interviewType}
                 onChange={(e) => setInterviewType(e.target.value)}
-                className="w-full rounded-xl bg-[#111827] border border-white/10 px-4 py-3"
+                className="w-full rounded-2xl border border-white/10 bg-[#111827] px-4 py-3 outline-none"
               >
                 {interviewTypes.map((item) => (
                   <option key={item} value={item}>
@@ -353,11 +359,13 @@ export default function Home() {
             </div>
 
             <div>
-              <label className="block mb-2 font-semibold">Experience Level</label>
+              <label className="mb-2 block text-sm font-medium text-gray-300">
+                Experience Level
+              </label>
               <select
                 value={experienceLevel}
                 onChange={(e) => setExperienceLevel(e.target.value)}
-                className="w-full rounded-xl bg-[#111827] border border-white/10 px-4 py-3"
+                className="w-full rounded-2xl border border-white/10 bg-[#111827] px-4 py-3 outline-none"
               >
                 {experienceLevels.map((item) => (
                   <option key={item} value={item}>
@@ -366,127 +374,173 @@ export default function Home() {
                 ))}
               </select>
             </div>
-          </div>
 
-          <div className="flex flex-wrap gap-3">
-            <button
-              onClick={startInterview}
-              disabled={loading}
-              className="flex-1 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-60 px-5 py-3 font-semibold"
-            >
-              {loading && !started ? "Loading..." : "Start Mock Interview"}
-            </button>
+            <div className="flex flex-col gap-3 pt-2">
+              <button
+                onClick={startInterview}
+                disabled={loading}
+                className="rounded-2xl bg-blue-600 px-4 py-3 font-semibold transition hover:bg-blue-700 disabled:opacity-60"
+              >
+                {loading && !started ? "Starting..." : "Start Mock Interview"}
+              </button>
+
+              <button
+                onClick={resetInterview}
+                className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 font-semibold transition hover:bg-white/10"
+              >
+                Reset Interview
+              </button>
+            </div>
+          </div>
+        </aside>
+
+        <section className="flex-1 rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl md:p-6">
+          <div className="mb-6 flex items-start justify-between gap-4">
+            <div>
+              <div className="mb-2 inline-flex rounded-full border border-blue-400/20 bg-blue-500/10 px-3 py-1 text-xs font-medium text-blue-300 lg:hidden">
+                AI-Powered Mock Interview
+              </div>
+              <h2 className="text-2xl font-bold md:text-3xl">Interview Workspace</h2>
+              <p className="mt-1 text-sm text-gray-300">
+                {company} • {roleLabels[role] || role} • {interviewType} •{" "}
+                {experienceLevel}
+              </p>
+            </div>
 
             <button
               onClick={resetInterview}
-              className="rounded-xl bg-gray-700 hover:bg-gray-800 px-5 py-3 font-semibold"
+              className="hidden rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium hover:bg-white/10 lg:block"
             >
-              Reset Interview
+              Reset
             </button>
           </div>
 
           {error && (
-            <div className="mt-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-red-300">
+            <div className="mb-6 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-red-300">
               {error}
             </div>
           )}
-        </div>
 
-        {started && (
-          <div className="space-y-6">
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
-              <p className="text-sm text-blue-300 font-semibold mb-2">
-                CURRENT QUESTION
-              </p>
-              <h3 className="text-3xl font-bold mb-3">Answer this question</h3>
-              <p className="text-lg text-gray-200">{currentQuestion}</p>
-            </div>
-
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-2xl font-bold">Your Response</h3>
+          {!started ? (
+            <div className="flex min-h-[420px] items-center justify-center rounded-3xl border border-dashed border-white/10 bg-[#0f172a]/60 p-10 text-center">
+              <div className="max-w-xl">
+                <h3 className="text-2xl font-bold">Ready to practice?</h3>
+                <p className="mt-3 text-gray-300">
+                  Choose your company, role, interview type, and experience level,
+                  then start a mock interview.
+                </p>
                 <button
-                  onClick={isListening ? stopListening : startListening}
-                  className="rounded-xl bg-blue-600 hover:bg-blue-700 px-4 py-2 font-semibold"
-                >
-                  {isListening ? "Stop Listening" : "Speak Answer"}
-                </button>
-              </div>
-
-              <textarea
-                value={answer}
-                onChange={(e) => setAnswer(e.target.value)}
-                placeholder="Speak with the mic or type your answer here..."
-                rows={6}
-                className="w-full rounded-xl bg-[#111827] border border-white/10 px-4 py-3 text-white"
-              />
-
-              <div className="flex flex-wrap gap-3 mt-4">
-                <button
-                  onClick={submitAnswer}
+                  onClick={startInterview}
                   disabled={loading}
-                  className="rounded-xl bg-green-600 hover:bg-green-700 disabled:opacity-60 px-5 py-3 font-semibold"
+                  className="mt-6 rounded-2xl bg-blue-600 px-6 py-3 font-semibold transition hover:bg-blue-700 disabled:opacity-60"
                 >
-                  {loading ? "Submitting..." : "Submit Answer"}
-                </button>
-
-                <button
-                  onClick={skipQuestion}
-                  disabled={loading}
-                  className="rounded-xl bg-yellow-600 hover:bg-yellow-700 disabled:opacity-60 px-5 py-3 font-semibold"
-                >
-                  {loading ? "Loading..." : "Skip Question"}
+                  {loading ? "Starting..." : "Start Mock Interview"}
                 </button>
               </div>
             </div>
-
-            {score && (
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-6 space-y-4">
-                <h3 className="text-2xl font-bold">Interview Feedback</h3>
-
-                <p>
-                  <span className="font-semibold text-blue-300">Score:</span>{" "}
-                  {score}
+          ) : (
+            <div className="space-y-6">
+              <div className="rounded-3xl border border-white/10 bg-[#0f172a]/70 p-6">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-blue-300">
+                  Current Question
                 </p>
+                <p className="text-lg leading-8 text-gray-100">{currentQuestion}</p>
+              </div>
 
-                <p>
-                  <span className="font-semibold text-blue-300">Feedback:</span>{" "}
-                  {feedback}
-                </p>
-
-                <div>
-                  <p className="font-semibold text-blue-300">Better Answer:</p>
-                  <p className="mt-1 text-gray-200 whitespace-pre-line">
-                    {betterAnswer}
-                  </p>
+              <div className="rounded-3xl border border-white/10 bg-[#0f172a]/70 p-6">
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <h3 className="text-xl font-semibold">Your Response</h3>
+                  <button
+                    onClick={isListening ? stopListening : startListening}
+                    className="rounded-2xl bg-blue-600 px-4 py-2 text-sm font-semibold transition hover:bg-blue-700"
+                  >
+                    {isListening ? "Stop Listening" : "Speak Answer"}
+                  </button>
                 </div>
 
-                <div>
-                  <p className="font-semibold text-blue-300">Next Question:</p>
-                  <p className="mt-1 text-gray-200 whitespace-pre-line">
-                    {nextQuestion}
-                  </p>
+                <textarea
+                  value={answer}
+                  onChange={(e) => setAnswer(e.target.value)}
+                  placeholder="Type your answer here..."
+                  rows={8}
+                  className="w-full rounded-2xl border border-white/10 bg-[#111827] px-4 py-4 text-white outline-none placeholder:text-gray-500"
+                />
+
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <button
+                    onClick={submitAnswer}
+                    disabled={loading}
+                    className="rounded-2xl bg-green-600 px-5 py-3 font-semibold transition hover:bg-green-700 disabled:opacity-60"
+                  >
+                    {loading ? "Submitting..." : "Submit Answer"}
+                  </button>
+
+                  <button
+                    onClick={skipQuestion}
+                    disabled={loading}
+                    className="rounded-2xl border border-white/10 bg-white/5 px-5 py-3 font-semibold transition hover:bg-white/10 disabled:opacity-60"
+                  >
+                    {loading ? "Loading..." : "Skip Question"}
+                  </button>
                 </div>
               </div>
-            )}
 
-            {history.length > 0 && (
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
-                <h3 className="text-2xl font-bold mb-4">Interview History</h3>
-                <div className="space-y-3">
-                  {history.map((item, index) => (
-                    <div
-                      key={index}
-                      className="rounded-xl bg-[#111827] border border-white/10 px-4 py-3 text-gray-200"
-                    >
-                      {item}
-                    </div>
-                  ))}
+              {score && (
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="rounded-3xl border border-white/10 bg-[#0f172a]/70 p-6">
+                    <p className="mb-2 text-sm font-semibold text-blue-300">Score</p>
+                    <p className="text-4xl font-bold">{score}</p>
+                  </div>
+
+                  <div className="rounded-3xl border border-white/10 bg-[#0f172a]/70 p-6">
+                    <p className="mb-2 text-sm font-semibold text-blue-300">Feedback</p>
+                    <p className="text-gray-200">{feedback}</p>
+                  </div>
+
+                  <div className="rounded-3xl border border-white/10 bg-[#0f172a]/70 p-6 md:col-span-2">
+                    <p className="mb-2 text-sm font-semibold text-blue-300">
+                      Better Answer
+                    </p>
+                    <p className="whitespace-pre-line text-gray-200">{betterAnswer}</p>
+                  </div>
+
+                  <div className="rounded-3xl border border-white/10 bg-[#0f172a]/70 p-6 md:col-span-2">
+                    <p className="mb-2 text-sm font-semibold text-blue-300">
+                      Next Question
+                    </p>
+                    <p className="whitespace-pre-line text-gray-200">{nextQuestion}</p>
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
-        )}
+              )}
+
+              {history.length > 0 && (
+                <div className="rounded-3xl border border-white/10 bg-[#0f172a]/70 p-6">
+                  <h3 className="mb-4 text-xl font-semibold">Interview History</h3>
+                  <div className="space-y-3">
+                    {history.map((item, index) => {
+                      const isUser = item.startsWith("Your Answer:");
+                      const isAI = item.startsWith("AI Question:");
+                      return (
+                        <div
+                          key={index}
+                          className={`rounded-2xl px-4 py-3 text-sm leading-7 ${
+                            isUser
+                              ? "ml-auto max-w-[85%] bg-blue-600/20 border border-blue-400/20"
+                              : isAI
+                              ? "max-w-[85%] bg-white/5 border border-white/10"
+                              : "max-w-[85%] bg-emerald-500/10 border border-emerald-400/20"
+                          }`}
+                        >
+                          {item}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </section>
       </div>
     </main>
   );
