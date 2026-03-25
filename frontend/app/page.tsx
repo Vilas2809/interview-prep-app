@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 declare global {
   interface Window {
@@ -10,6 +10,15 @@ declare global {
 }
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL!;
+const TOTAL_QUESTIONS = 5;
+const QUESTION_TIME_SECONDS = 120;
+
+type EvaluationResult = {
+  score: string;
+  feedback: string;
+  better_answer: string;
+  next_question: string;
+};
 
 export default function Home() {
   const [company, setCompany] = useState("Google");
@@ -18,6 +27,7 @@ export default function Home() {
   const [experience, setExperience] = useState("Entry Level");
 
   const [question, setQuestion] = useState("");
+  const [pendingNextQuestion, setPendingNextQuestion] = useState("");
   const [answer, setAnswer] = useState("");
   const [history, setHistory] = useState<string[]>([]);
   const [error, setError] = useState("");
@@ -26,10 +36,43 @@ export default function Home() {
   const [score, setScore] = useState("");
   const [feedback, setFeedback] = useState("");
   const [betterAnswer, setBetterAnswer] = useState("");
-  const [nextQuestion, setNextQuestion] = useState("");
 
   const [isListening, setIsListening] = useState(false);
+  const [interviewStarted, setInterviewStarted] = useState(false);
+  const [questionNumber, setQuestionNumber] = useState(0);
+  const [timeLeft, setTimeLeft] = useState(QUESTION_TIME_SECONDS);
+  const [showNextButton, setShowNextButton] = useState(false);
+  const [interviewCompleted, setInterviewCompleted] = useState(false);
+
   const recognitionRef = useRef<any>(null);
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+  };
+
+  useEffect(() => {
+    if (!interviewStarted || !question || showNextButton || interviewCompleted) return;
+
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [interviewStarted, question, showNextButton, interviewCompleted]);
+
+  useEffect(() => {
+    if (timeLeft === 0 && question && !showNextButton && !loading && !interviewCompleted) {
+      handleSubmitAnswer(true);
+    }
+  }, [timeLeft, question, showNextButton, loading, interviewCompleted]);
 
   const startListening = () => {
     const SpeechRecognition =
@@ -76,24 +119,36 @@ export default function Home() {
   };
 
   const resetInterview = () => {
+    stopListening();
     setQuestion("");
+    setPendingNextQuestion("");
     setAnswer("");
     setHistory([]);
     setError("");
     setScore("");
     setFeedback("");
     setBetterAnswer("");
-    setNextQuestion("");
-    stopListening();
+    setInterviewStarted(false);
+    setQuestionNumber(0);
+    setTimeLeft(QUESTION_TIME_SECONDS);
+    setShowNextButton(false);
+    setInterviewCompleted(false);
+  };
+
+  const clearEvaluation = () => {
+    setScore("");
+    setFeedback("");
+    setBetterAnswer("");
   };
 
   const startInterview = async () => {
     setLoading(true);
     setError("");
-    setScore("");
-    setFeedback("");
-    setBetterAnswer("");
-    setNextQuestion("");
+    clearEvaluation();
+    setPendingNextQuestion("");
+    setAnswer("");
+    setShowNextButton(false);
+    setInterviewCompleted(false);
 
     try {
       const res = await fetch(`${API_URL}/interview`, {
@@ -116,6 +171,9 @@ export default function Home() {
       }
 
       setQuestion(data.question);
+      setInterviewStarted(true);
+      setQuestionNumber(1);
+      setTimeLeft(QUESTION_TIME_SECONDS);
       setHistory([`AI: ${data.question}`]);
     } catch (err: any) {
       setError(err.message || "Failed to start interview");
@@ -124,8 +182,10 @@ export default function Home() {
     }
   };
 
-  const submitAnswer = async () => {
-    if (!answer.trim()) {
+  const handleSubmitAnswer = async (autoSubmit = false) => {
+    const finalAnswer = answer.trim();
+
+    if (!finalAnswer && !autoSubmit) {
       setError("Please enter or speak an answer first.");
       return;
     }
@@ -146,7 +206,7 @@ export default function Home() {
           interview_type: interviewType,
           experience_level: experience,
           current_question: question,
-          user_answer: answer,
+          user_answer: finalAnswer || "No answer provided. Time ran out.",
         }),
       });
 
@@ -156,48 +216,47 @@ export default function Home() {
         throw new Error(data.detail || "Failed to submit answer");
       }
 
-      const resultText = data.result || "";
+      const result: EvaluationResult = data;
 
-      const scoreMatch = resultText.match(/Score:\s*(.*)/i);
-      const feedbackMatch = resultText.match(/Feedback:\s*(.*)/i);
-      const betterAnswerMatch = resultText.match(
-        /Better Answer:\s*([\s\S]*?)Next Question:/i
-      );
-      const nextQuestionMatch = resultText.match(/Next Question:\s*([\s\S]*)/i);
-
-      const parsedScore = scoreMatch ? scoreMatch[1].trim() : "";
-      const parsedFeedback = feedbackMatch ? feedbackMatch[1].trim() : "";
-      const parsedBetterAnswer = betterAnswerMatch
-        ? betterAnswerMatch[1].trim()
-        : "";
-      const parsedNextQuestion = nextQuestionMatch
-        ? nextQuestionMatch[1].trim()
-        : "";
-
-      setScore(parsedScore);
-      setFeedback(parsedFeedback);
-      setBetterAnswer(parsedBetterAnswer);
-      setNextQuestion(parsedNextQuestion);
+      setScore(result.score || "");
+      setFeedback(result.feedback || "");
+      setBetterAnswer(result.better_answer || "");
+      setPendingNextQuestion(result.next_question || "");
+      setShowNextButton(true);
 
       setHistory((prev) => [
         ...prev,
-        `You: ${answer}`,
-        `Score: ${parsedScore}`,
-        `Feedback: ${parsedFeedback}`,
-        `Better Answer: ${parsedBetterAnswer}`,
-        `Next Question: ${parsedNextQuestion}`,
+        `You: ${finalAnswer || "No answer provided. Time ran out."}`,
+        `Score: ${result.score || ""}`,
+        `Feedback: ${result.feedback || ""}`,
+        `Better Answer: ${result.better_answer || ""}`,
+        `Next Question: ${result.next_question || ""}`,
       ]);
-
-      if (parsedNextQuestion) {
-        setQuestion(parsedNextQuestion);
-      }
-
-      setAnswer("");
     } catch (err: any) {
       setError(err.message || "Failed to submit answer");
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleNextQuestion = () => {
+    if (questionNumber >= TOTAL_QUESTIONS) {
+      setInterviewCompleted(true);
+      setShowNextButton(false);
+      setPendingNextQuestion("");
+      setQuestion("");
+      stopListening();
+      return;
+    }
+
+    setQuestion(pendingNextQuestion);
+    setAnswer("");
+    clearEvaluation();
+    setPendingNextQuestion("");
+    setShowNextButton(false);
+    setQuestionNumber((prev) => prev + 1);
+    setTimeLeft(QUESTION_TIME_SECONDS);
+    setHistory((prev) => [...prev, `AI: ${pendingNextQuestion}`]);
   };
 
   const skipQuestion = async () => {
@@ -208,6 +267,7 @@ export default function Home() {
 
     setLoading(true);
     setError("");
+    stopListening();
 
     try {
       const res = await fetch(`${API_URL}/mock-interview/next`, {
@@ -231,12 +291,13 @@ export default function Home() {
       }
 
       setQuestion(data.question);
-      setHistory((prev) => [...prev, `AI: ${data.question}`]);
       setAnswer("");
-      setScore("");
-      setFeedback("");
-      setBetterAnswer("");
-      setNextQuestion("");
+      clearEvaluation();
+      setPendingNextQuestion("");
+      setShowNextButton(false);
+      setTimeLeft(QUESTION_TIME_SECONDS);
+
+      setHistory((prev) => [...prev, `Skipped Question`, `AI: ${data.question}`]);
     } catch (err: any) {
       setError(err.message || "Failed to skip question");
     } finally {
@@ -252,10 +313,10 @@ export default function Home() {
       <div className="container">
         <section className="hero">
           <div className="badge">AI-Powered Mock Interview</div>
-          <h1 className="title">Mock Interview AI</h1>
+          <h1 className="title">Interview Prep AI</h1>
           <p className="subtitle">
-            Type any company, role, interview type, and experience level. Practice
-            theory, coding, behavioral, system design, and more.
+            Practice company-specific technical, behavioral, coding, OOP, DBMS,
+            and system design interviews with AI-generated questions and feedback.
           </p>
         </section>
 
@@ -263,8 +324,7 @@ export default function Home() {
           <div className="panelHeader">
             <h2 className="panelTitle">Interview Setup</h2>
             <p className="panelText">
-              Make it as specific as you want. Examples: Tesla, Backend Engineer,
-              DBMS, Mid Level.
+              Enter the company, role, interview type, and experience level to begin.
             </p>
           </div>
 
@@ -276,6 +336,7 @@ export default function Home() {
                 value={company}
                 onChange={(e) => setCompany(e.target.value)}
                 placeholder="Google, Tesla, NVIDIA, Stripe..."
+                disabled={interviewStarted && !interviewCompleted}
               />
             </div>
 
@@ -286,6 +347,7 @@ export default function Home() {
                 value={role}
                 onChange={(e) => setRole(e.target.value)}
                 placeholder="Software Engineer, AI Engineer..."
+                disabled={interviewStarted && !interviewCompleted}
               />
             </div>
 
@@ -296,6 +358,7 @@ export default function Home() {
                 value={interviewType}
                 onChange={(e) => setInterviewType(e.target.value)}
                 placeholder="Theory, Coding, Behavioral, OOP, DBMS..."
+                disabled={interviewStarted && !interviewCompleted}
               />
             </div>
 
@@ -306,39 +369,58 @@ export default function Home() {
                 value={experience}
                 onChange={(e) => setExperience(e.target.value)}
                 placeholder="Entry Level, Mid Level, Senior Level"
+                disabled={interviewStarted && !interviewCompleted}
               />
             </div>
           </div>
 
-          <button
-            className="primaryButton"
-            onClick={startInterview}
-            disabled={loading}
-          >
-            {loading ? "Starting..." : "Start Interview"}
-          </button>
+          {!interviewStarted || interviewCompleted ? (
+            <button
+              className="primaryButton"
+              onClick={startInterview}
+              disabled={loading}
+            >
+              {loading ? "Starting..." : "Start Interview"}
+            </button>
+          ) : (
+            <div className="lockedBanner">
+              Interview in progress. Reset interview to change setup.
+            </div>
+          )}
 
           {error && <div className="error">{error}</div>}
         </section>
 
-        {question && (
+        {interviewStarted && !interviewCompleted && question && (
           <>
-            <section className="questionCard">
-              <div className="miniLabel">Current Question</div>
+            <section className="sessionCard">
+              <div className="rowBetween sessionMeta">
+                <div className="miniLabel">
+                  Question {questionNumber} of {TOTAL_QUESTIONS}
+                </div>
+                <div className={`timerBadge ${timeLeft <= 20 ? "timerDanger" : ""}`}>
+                  ⏱ {formatTime(timeLeft)}
+                </div>
+              </div>
+
+              <div className="sectionTitle">Current Question</div>
               <div className="questionText">{question}</div>
             </section>
 
             <section className="voicePanel">
               <div className="rowBetween">
                 <div>
-                  <div className="sectionTitle">Your Response</div>
-                  <div className="helperText">Type your answer or use the mic.</div>
+                  <div className="sectionTitle">Your Answer</div>
+                  <div className="helperText">
+                    Type your answer or use voice input.
+                  </div>
                 </div>
 
                 <div className="audioActions">
                   <button
                     onClick={isListening ? stopListening : startListening}
                     className={`micMainButton ${isListening ? "micActive" : ""}`}
+                    disabled={showNextButton || loading}
                   >
                     {isListening ? "Stop Listening 🎙️" : "Speak Answer 🎤"}
                   </button>
@@ -347,16 +429,17 @@ export default function Home() {
 
               <textarea
                 className="textarea"
-                placeholder="Type your answer..."
+                placeholder="Type your answer here..."
                 value={answer}
                 onChange={(e) => setAnswer(e.target.value)}
+                disabled={showNextButton || loading}
               />
 
               <div className="buttonRow">
                 <button
                   className="primaryButton halfButton"
-                  onClick={submitAnswer}
-                  disabled={loading}
+                  onClick={() => handleSubmitAnswer(false)}
+                  disabled={loading || showNextButton}
                 >
                   {loading ? "Submitting..." : "Submit Answer"}
                 </button>
@@ -364,44 +447,75 @@ export default function Home() {
                 <button
                   className="skipButton halfButton"
                   onClick={skipQuestion}
-                  disabled={loading}
+                  disabled={loading || showNextButton}
                 >
                   {loading ? "Loading..." : "Skip Question"}
                 </button>
               </div>
             </section>
+
+            {(score || feedback || betterAnswer) && (
+              <section className="panel">
+                <div className="panelHeader">
+                  <h2 className="panelTitle">Evaluation</h2>
+                  <p className="panelText">
+                    Review your score, feedback, and a stronger sample answer.
+                  </p>
+                </div>
+
+                <div className="feedbackGrid">
+                  {score && (
+                    <div className="feedbackCard">
+                      <div className="feedbackLabel">Score</div>
+                      <div className="scoreValue">{score}</div>
+                    </div>
+                  )}
+
+                  {feedback && (
+                    <div className="feedbackCard">
+                      <div className="feedbackLabel">Feedback</div>
+                      <div className="feedbackValue">{feedback}</div>
+                    </div>
+                  )}
+
+                  {betterAnswer && (
+                    <div className="feedbackCard feedbackFull">
+                      <div className="feedbackLabel">Better Answer</div>
+                      <div className="feedbackValue">{betterAnswer}</div>
+                    </div>
+                  )}
+                </div>
+
+                {showNextButton && (
+                  <div className="nextActionRow">
+                    <button className="primaryButton nextButton" onClick={handleNextQuestion}>
+                      {questionNumber >= TOTAL_QUESTIONS
+                        ? "Finish Interview"
+                        : "Next Question →"}
+                    </button>
+                  </div>
+                )}
+              </section>
+            )}
           </>
         )}
 
-        {(score || feedback || betterAnswer || nextQuestion) && (
-          <section className="feedbackGrid">
-            {score && (
-              <div className="feedbackCard">
-                <div className="feedbackLabel">Score</div>
-                <div className="scoreValue">{score}</div>
-              </div>
-            )}
+        {interviewCompleted && (
+          <section className="panel">
+            <div className="panelHeader">
+              <h2 className="panelTitle">Interview Completed</h2>
+              <p className="panelText">
+                Great job — you completed the mock interview session.
+              </p>
+            </div>
 
-            {feedback && (
-              <div className="feedbackCard">
-                <div className="feedbackLabel">Feedback</div>
-                <div className="feedbackValue">{feedback}</div>
+            <div className="completionBox">
+              <div className="completionTitle">Session Finished</div>
+              <div className="completionText">
+                You answered {TOTAL_QUESTIONS} questions. Review your interview history
+                below or reset to start another session.
               </div>
-            )}
-
-            {betterAnswer && (
-              <div className="feedbackCard feedbackFull">
-                <div className="feedbackLabel">Better Answer</div>
-                <div className="feedbackValue">{betterAnswer}</div>
-              </div>
-            )}
-
-            {nextQuestion && (
-              <div className="feedbackCard feedbackFull">
-                <div className="feedbackLabel">Next Question</div>
-                <div className="feedbackValue">{nextQuestion}</div>
-              </div>
-            )}
+            </div>
           </section>
         )}
 
@@ -415,7 +529,7 @@ export default function Home() {
           <div className="panelHeader">
             <h2 className="panelTitle">Interview History</h2>
             <p className="panelText">
-              Track your questions, answers, feedback, and follow-up prompts.
+              Track your questions, answers, scores, and feedback throughout the session.
             </p>
           </div>
 

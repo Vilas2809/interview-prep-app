@@ -73,11 +73,6 @@ def get_type_instruction(interview_type: str) -> str:
         return """
 Ask a theory-based interview question.
 Focus on definitions, concepts, comparisons, or fundamentals.
-Examples:
-- What is a stack?
-- Difference between abstraction and encapsulation
-- What is normalization in DBMS?
-- What is deadlock?
 """
     if interview_type_lower in {"coding", "dsa", "problem solving"}:
         return """
@@ -120,16 +115,48 @@ Tailor the question accordingly.
 """
 
 
+def call_groq(prompt: str, system_message: str, temperature: float = 0.7, max_tokens: int = 600) -> str:
+    response = client.chat.completions.create(
+        model=MODEL_NAME,
+        messages=[
+            {"role": "system", "content": system_message},
+            {"role": "user", "content": prompt},
+        ],
+        temperature=temperature,
+        max_tokens=max_tokens,
+    )
+    return response.choices[0].message.content.strip()
+
+
+def extract_section(text: str, label: str) -> str:
+    lines = text.splitlines()
+    for i, line in enumerate(lines):
+        if line.lower().startswith(f"{label.lower()}:"):
+            return line.split(":", 1)[1].strip()
+    return ""
+
+
+def extract_multiline_section(text: str, start_label: str, end_label: str | None = None) -> str:
+    start_index = text.lower().find(f"{start_label.lower()}:")
+    if start_index == -1:
+        return ""
+
+    content = text[start_index + len(start_label) + 1 :]
+
+    if end_label:
+        end_index = content.lower().find(f"{end_label.lower()}:")
+        if end_index != -1:
+            content = content[:end_index]
+
+    return content.strip()
+
+
 @app.post("/interview")
 def start_mock_interview(request: MockInterviewStartRequest):
     company = request.company.strip() if request.company else "General"
     role = request.role.strip() if request.role else "Software Engineer"
     interview_type = request.interview_type.strip() if request.interview_type else "Theory"
-    experience_level = (
-        request.experience_level.strip()
-        if request.experience_level
-        else "Entry Level"
-    )
+    experience_level = request.experience_level.strip() if request.experience_level else "Entry Level"
 
     type_instruction = get_type_instruction(interview_type)
 
@@ -158,18 +185,13 @@ Rules:
 """.strip()
 
     try:
-        response = client.chat.completions.create(
-            model=MODEL_NAME,
-            messages=[
-                {"role": "system", "content": "You are a professional interviewer."},
-                {"role": "user", "content": prompt},
-            ],
+        question = call_groq(
+            prompt=prompt,
+            system_message="You are a professional interviewer.",
             temperature=0.8,
-            max_tokens=160,
+            max_tokens=180,
         )
-
-        return {"question": response.choices[0].message.content.strip()}
-
+        return {"question": question}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -179,19 +201,15 @@ def answer_mock_interview(request: MockInterviewAnswerRequest):
     company = request.company.strip() if request.company else "General"
     role = request.role.strip() if request.role else "Software Engineer"
     interview_type = request.interview_type.strip() if request.interview_type else "Theory"
-    experience_level = (
-        request.experience_level.strip()
-        if request.experience_level
-        else "Entry Level"
-    )
+    experience_level = request.experience_level.strip() if request.experience_level else "Entry Level"
     current_question = request.current_question.strip()
     user_answer = request.user_answer.strip()
 
     if not current_question:
-        raise HTTPException(status_code=400, detail="Current question is required.")
+      raise HTTPException(status_code=400, detail="Current question is required.")
 
     if not user_answer:
-        raise HTTPException(status_code=400, detail="User answer is required.")
+      raise HTTPException(status_code=400, detail="User answer is required.")
 
     prompt = f"""
 You are a strict but helpful mock interviewer.
@@ -216,21 +234,33 @@ Feedback: <short practical constructive feedback>
 Better Answer: <improved answer better suited to the role and experience level>
 Next Question: <one next interview question suitable for the same company, role, interview type, and experience level>
 
-Keep it clear, practical, and interview-friendly.
+Rules:
+- Keep the score realistic
+- Keep feedback concise but useful
+- Make the better answer strong, clear, and interview-ready
+- Ask only one next question
 """.strip()
 
     try:
-        response = client.chat.completions.create(
-            model=MODEL_NAME,
-            messages=[
-                {"role": "system", "content": "You are a strict but helpful interviewer."},
-                {"role": "user", "content": prompt},
-            ],
+        result_text = call_groq(
+            prompt=prompt,
+            system_message="You are a strict but helpful interviewer.",
             temperature=0.7,
-            max_tokens=850,
+            max_tokens=900,
         )
 
-        return {"result": response.choices[0].message.content.strip()}
+        score = extract_section(result_text, "Score")
+        feedback = extract_section(result_text, "Feedback")
+        better_answer = extract_multiline_section(result_text, "Better Answer", "Next Question")
+        next_question = extract_multiline_section(result_text, "Next Question")
+
+        return {
+            "score": score,
+            "feedback": feedback,
+            "better_answer": better_answer,
+            "next_question": next_question,
+            "raw_result": result_text,
+        }
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -241,11 +271,7 @@ def next_mock_interview_question(request: MockInterviewNextRequest):
     company = request.company.strip() if request.company else "General"
     role = request.role.strip() if request.role else "Software Engineer"
     interview_type = request.interview_type.strip() if request.interview_type else "Theory"
-    experience_level = (
-        request.experience_level.strip()
-        if request.experience_level
-        else "Entry Level"
-    )
+    experience_level = request.experience_level.strip() if request.experience_level else "Entry Level"
     previous_question = request.previous_question.strip()
 
     if not previous_question:
@@ -278,17 +304,12 @@ Rules:
 """.strip()
 
     try:
-        response = client.chat.completions.create(
-            model=MODEL_NAME,
-            messages=[
-                {"role": "system", "content": "You are a professional interviewer."},
-                {"role": "user", "content": prompt},
-            ],
+        question = call_groq(
+            prompt=prompt,
+            system_message="You are a professional interviewer.",
             temperature=0.8,
-            max_tokens=160,
+            max_tokens=180,
         )
-
-        return {"question": response.choices[0].message.content.strip()}
-
+        return {"question": question}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
