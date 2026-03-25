@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import {
+
   Briefcase,
   Building2,
   ChevronDown,
@@ -261,22 +262,19 @@ type SelectFieldProps = {
   options: string[];
 };
 
-function SelectField({ label, icon, value, onChange, options }: SelectFieldProps) {
+function SelectField({ label, value, onChange, options }: Omit<SelectFieldProps, "icon">) {
   return (
     <div>
       <label className="mb-2 block text-sm font-medium text-gray-300">{label}</label>
-      <div className="relative">
-        <div className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
-          {icon}
-        </div>
 
+      <div className="relative">
         <select
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="h-12 w-full appearance-none rounded-2xl border border-white/10 bg-[#0d1324] pl-11 pr-10 text-sm text-white outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30"
+          className="h-12 w-full appearance-none rounded-2xl border border-white/10 bg-[#0d1324] px-4 pr-12 text-sm text-white outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30"
         >
           {options.map((option) => (
-            <option key={option} value={option} className="bg-[#0d1324]">
+            <option key={option} value={option} className="bg-[#0d1324] text-white">
               {option}
             </option>
           ))}
