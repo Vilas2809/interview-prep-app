@@ -36,60 +36,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-COMPANIES = [
-    "General",
-    "Google",
-    "Amazon",
-    "Microsoft",
-    "Meta",
-    "Apple",
-    "Netflix",
-    "Tesla",
-]
-
-INTERVIEW_TYPES = [
-    "Technical",
-    "HR",
-    "Behavioral",
-    "DSA",
-    "OOP",
-]
-
-EXPERIENCE_LEVELS = [
-    "Entry Level",
-    "Mid Level",
-    "Senior Level",
-]
-
-ROLES = [
-    "Software Engineer",
-    "Software Developer",
-    "AI Engineer",
-    "Network Engineer"
-]
-
-
-class ChatMessage(BaseModel):
-    role: str
-    content: str
-
-
-class ChatRequest(BaseModel):
-    company: str = "General"
-    messages: list[ChatMessage]
-
 
 class MockInterviewStartRequest(BaseModel):
     company: str = "General"
-    role: str = "SE"
-    interview_type: str = "Technical"
+    role: str = "Software Engineer"
+    interview_type: str = "Theory"
     experience_level: str = "Entry Level"
 
 
 class MockInterviewAnswerRequest(BaseModel):
     company: str = "General"
-    role: str = "SE"
-    interview_type: str = "Technical"
+    role: str = "Software Engineer"
+    interview_type: str = "Theory"
     experience_level: str = "Entry Level"
     current_question: str
     user_answer: str
@@ -97,8 +55,8 @@ class MockInterviewAnswerRequest(BaseModel):
 
 class MockInterviewNextRequest(BaseModel):
     company: str = "General"
-    role: str = "SE"
-    interview_type: str = "Technical"
+    role: str = "Software Engineer"
+    interview_type: str = "Theory"
     experience_level: str = "Entry Level"
     previous_question: str
 
@@ -108,32 +66,72 @@ def home():
     return {"message": "Interview Prep Backend Running with Groq"}
 
 
-@app.get("/companies")
-def get_companies():
-    return {"companies": COMPANIES}
+def get_type_instruction(interview_type: str) -> str:
+    interview_type_lower = interview_type.lower().strip()
 
-
-@app.get("/interview-types")
-def get_interview_types():
-    return {"interview_types": INTERVIEW_TYPES}
-
-
-@app.get("/experience-levels")
-def get_experience_levels():
-    return {"experience_levels": EXPERIENCE_LEVELS}
-
-
-@app.get("/roles")
-def get_roles():
-    return {"roles": ROLES}
+    if interview_type_lower in {"theory", "concepts", "fundamentals"}:
+        return """
+Ask a theory-based interview question.
+Focus on definitions, concepts, comparisons, or fundamentals.
+Examples:
+- What is a stack?
+- Difference between abstraction and encapsulation
+- What is normalization in DBMS?
+- What is deadlock?
+"""
+    if interview_type_lower in {"coding", "dsa", "problem solving"}:
+        return """
+Ask a coding or problem-solving interview question.
+Focus on algorithms, data structures, logic, or implementation.
+"""
+    if interview_type_lower in {"behavioral", "hr"}:
+        return """
+Ask a behavioral interview question.
+Focus on teamwork, communication, leadership, deadlines, conflict, or challenges.
+"""
+    if interview_type_lower in {"system design", "design"}:
+        return """
+Ask a system design interview question.
+Focus on scalability, architecture, APIs, caching, databases, and tradeoffs.
+"""
+    if interview_type_lower == "oop":
+        return """
+Ask an Object-Oriented Programming interview question.
+Focus on inheritance, polymorphism, abstraction, encapsulation, interfaces, and design principles.
+"""
+    if interview_type_lower == "dbms":
+        return """
+Ask a DBMS interview question.
+Focus on normalization, joins, indexing, transactions, SQL, and ACID properties.
+"""
+    if interview_type_lower == "os":
+        return """
+Ask an Operating Systems interview question.
+Focus on processes, threads, scheduling, deadlocks, synchronization, and memory management.
+"""
+    if interview_type_lower in {"networks", "networking", "cn"}:
+        return """
+Ask a Computer Networks interview question.
+Focus on TCP/IP, OSI model, DNS, HTTP/HTTPS, switching, routing, and protocols.
+"""
+    return f"""
+Ask an interview question suitable for this custom interview type: {interview_type}.
+Tailor the question accordingly.
+"""
 
 
 @app.post("/interview")
 def start_mock_interview(request: MockInterviewStartRequest):
     company = request.company.strip() if request.company else "General"
-    role = request.role.strip() if request.role else "SE"
-    interview_type = request.interview_type.strip() if request.interview_type else "Technical"
-    experience_level = request.experience_level.strip() if request.experience_level else "Entry Level"
+    role = request.role.strip() if request.role else "Software Engineer"
+    interview_type = request.interview_type.strip() if request.interview_type else "Theory"
+    experience_level = (
+        request.experience_level.strip()
+        if request.experience_level
+        else "Entry Level"
+    )
+
+    type_instruction = get_type_instruction(interview_type)
 
     prompt = f"""
 You are acting as a professional mock interviewer.
@@ -143,20 +141,18 @@ Role: {role}
 Interview Type: {interview_type}
 Experience Level: {experience_level}
 
-Ask exactly one interview question only.
+{type_instruction}
 
 Rules:
-- Tailor the question to the selected role:
-  - SE = Software Engineer
-  - SD = Software Developer
-  - AI = AI Engineer
-  - NE = Network Engineer
-- Tailor difficulty to the experience level
-- Entry Level = fundamentals and beginner-friendly
-- Mid Level = implementation, debugging, practical tradeoffs
-- Senior Level = architecture, leadership, system thinking
-- Do not add feedback
+- Tailor the question to the selected company if possible
+- Tailor the question to the selected role
+- Tailor the difficulty to the experience level
+- Entry Level = beginner-friendly fundamentals
+- Mid Level = practical implementation, debugging, tradeoffs
+- Senior Level = advanced concepts, architecture, leadership, tradeoffs
+- Ask exactly one interview question only
 - Do not add explanation
+- Do not add feedback
 - Do not add numbering
 - Just ask the question
 """.strip()
@@ -169,7 +165,7 @@ Rules:
                 {"role": "user", "content": prompt},
             ],
             temperature=0.8,
-            max_tokens=150,
+            max_tokens=160,
         )
 
         return {"question": response.choices[0].message.content.strip()}
@@ -181,9 +177,13 @@ Rules:
 @app.post("/mock-interview/answer")
 def answer_mock_interview(request: MockInterviewAnswerRequest):
     company = request.company.strip() if request.company else "General"
-    role = request.role.strip() if request.role else "SE"
-    interview_type = request.interview_type.strip() if request.interview_type else "Technical"
-    experience_level = request.experience_level.strip() if request.experience_level else "Entry Level"
+    role = request.role.strip() if request.role else "Software Engineer"
+    interview_type = request.interview_type.strip() if request.interview_type else "Theory"
+    experience_level = (
+        request.experience_level.strip()
+        if request.experience_level
+        else "Entry Level"
+    )
     current_question = request.current_question.strip()
     user_answer = request.user_answer.strip()
 
@@ -207,7 +207,7 @@ Current Question:
 Candidate Answer:
 {user_answer}
 
-Evaluate the answer based on the selected role and experience level.
+Evaluate the answer based on the selected role, interview type, and experience level.
 
 Respond in exactly this format:
 
@@ -216,7 +216,7 @@ Feedback: <short practical constructive feedback>
 Better Answer: <improved answer better suited to the role and experience level>
 Next Question: <one next interview question suitable for the same company, role, interview type, and experience level>
 
-Keep the response clear, practical, and beginner-friendly.
+Keep it clear, practical, and interview-friendly.
 """.strip()
 
     try:
@@ -227,7 +227,7 @@ Keep the response clear, practical, and beginner-friendly.
                 {"role": "user", "content": prompt},
             ],
             temperature=0.7,
-            max_tokens=800,
+            max_tokens=850,
         )
 
         return {"result": response.choices[0].message.content.strip()}
@@ -239,13 +239,19 @@ Keep the response clear, practical, and beginner-friendly.
 @app.post("/mock-interview/next")
 def next_mock_interview_question(request: MockInterviewNextRequest):
     company = request.company.strip() if request.company else "General"
-    role = request.role.strip() if request.role else "SE"
-    interview_type = request.interview_type.strip() if request.interview_type else "Technical"
-    experience_level = request.experience_level.strip() if request.experience_level else "Entry Level"
+    role = request.role.strip() if request.role else "Software Engineer"
+    interview_type = request.interview_type.strip() if request.interview_type else "Theory"
+    experience_level = (
+        request.experience_level.strip()
+        if request.experience_level
+        else "Entry Level"
+    )
     previous_question = request.previous_question.strip()
 
     if not previous_question:
         raise HTTPException(status_code=400, detail="Previous question is required.")
+
+    type_instruction = get_type_instruction(interview_type)
 
     prompt = f"""
 You are acting as a professional mock interviewer.
@@ -255,13 +261,15 @@ Role: {role}
 Interview Type: {interview_type}
 Experience Level: {experience_level}
 
+{type_instruction}
+
 Previous Question:
 {previous_question}
 
 Ask exactly one new interview question only.
 
 Rules:
-- Tailor it to the selected role
+- Tailor it to the selected company and role
 - Do not repeat the previous question
 - Do not add explanation
 - Do not add feedback
@@ -277,7 +285,7 @@ Rules:
                 {"role": "user", "content": prompt},
             ],
             temperature=0.8,
-            max_tokens=150,
+            max_tokens=160,
         )
 
         return {"question": response.choices[0].message.content.strip()}
