@@ -91,7 +91,8 @@ export default function Home() {
     stopListening();
 
     try {
-      const res = await fetch("http://127.0.0.1:8000/mock-interview/start", {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL;
+      const res = await fetch(`${API_URL}/interview`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -130,7 +131,8 @@ export default function Home() {
     stopListening();
 
     try {
-      const res = await fetch("http://127.0.0.1:8000/mock-interview/answer", {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL;
+      const res = await fetch(`${API_URL}/mock-interview/answer`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
