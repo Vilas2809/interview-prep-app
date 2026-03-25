@@ -13,7 +13,7 @@ load_dotenv(dotenv_path=env_path)
 groq_api_key = os.getenv("GROQ_API_KEY")
 
 if not groq_api_key:
-    raise RuntimeError("GROQ_API_KEY not found in backend/.env")
+    raise RuntimeError("WARNING: GROQ_API_KEY not set")
 
 client = OpenAI(
     api_key=groq_api_key,
@@ -24,7 +24,7 @@ app = FastAPI(title="Interview Prep API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["https://interview-prep-ai.vercel.app"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
