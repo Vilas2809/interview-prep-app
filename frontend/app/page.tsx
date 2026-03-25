@@ -36,7 +36,7 @@ export default function Home() {
       window.SpeechRecognition || window.webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
-      alert("Speech recognition not supported in this browser");
+      setError("Speech recognition is not supported in this browser.");
       return;
     }
 
@@ -45,15 +45,26 @@ export default function Home() {
     recognition.continuous = false;
     recognition.interimResults = false;
 
-    recognition.onstart = () => setIsListening(true);
-
-    recognition.onresult = (event: any) => {
-      const text = event.results[0][0].transcript;
-      setAnswer((prev) => `${prev} ${text}`.trim());
+    recognition.onstart = () => {
+      setIsListening(true);
+      setError("");
     };
 
-    recognition.onend = () => setIsListening(false);
-    recognition.onerror = () => setIsListening(false);
+    recognition.onresult = (event: any) => {
+      const text = event.results?.[0]?.[0]?.transcript || "";
+      if (text) {
+        setAnswer((prev) => `${prev} ${text}`.trim());
+      }
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognition.onerror = () => {
+      setIsListening(false);
+      setError("Speech recognition failed.");
+    };
 
     recognitionRef.current = recognition;
     recognition.start();
@@ -114,7 +125,10 @@ export default function Home() {
   };
 
   const submitAnswer = async () => {
-    if (!answer.trim()) return;
+    if (!answer.trim()) {
+      setError("Please enter or speak an answer first.");
+      return;
+    }
 
     setLoading(true);
     setError("");
@@ -187,7 +201,10 @@ export default function Home() {
   };
 
   const skipQuestion = async () => {
-    if (!question.trim()) return;
+    if (!question.trim()) {
+      setError("No current question to skip.");
+      return;
+    }
 
     setLoading(true);
     setError("");
@@ -216,6 +233,10 @@ export default function Home() {
       setQuestion(data.question);
       setHistory((prev) => [...prev, `AI: ${data.question}`]);
       setAnswer("");
+      setScore("");
+      setFeedback("");
+      setBetterAnswer("");
+      setNextQuestion("");
     } catch (err: any) {
       setError(err.message || "Failed to skip question");
     } finally {
@@ -224,187 +245,210 @@ export default function Home() {
   };
 
   return (
-    <div className="container">
-      <h1 className="title">Mock Interview AI</h1>
-      <p className="subtitle">
-        Type any company, any role, any interview type, and any experience level.
-      </p>
+    <main className="page">
+      <div className="backgroundGlow glowOne" />
+      <div className="backgroundGlow glowTwo" />
 
-      <div className="grid">
-        <div>
-          <label className="label">Company</label>
-          <input
-            className="input"
-            value={company}
-            onChange={(e) => setCompany(e.target.value)}
-            placeholder="Type any company, e.g. Google, NVIDIA, Stripe"
-          />
-        </div>
+      <div className="container">
+        <section className="hero">
+          <div className="badge">AI-Powered Mock Interview</div>
+          <h1 className="title">Mock Interview AI</h1>
+          <p className="subtitle">
+            Type any company, role, interview type, and experience level. Practice
+            theory, coding, behavioral, system design, and more.
+          </p>
+        </section>
 
-        <div>
-          <label className="label">Role</label>
-          <input
-            className="input"
-            value={role}
-            onChange={(e) => setRole(e.target.value)}
-            placeholder="Type any role, e.g. Software Engineer, AI Engineer"
-          />
-        </div>
-
-        <div>
-          <label className="label">Interview Type</label>
-          <input
-            className="input"
-            value={interviewType}
-            onChange={(e) => setInterviewType(e.target.value)}
-            placeholder="Theory, Coding, OOP, DBMS, OS, Networks, Behavioral"
-          />
-        </div>
-
-        <div>
-          <label className="label">Experience Level</label>
-          <input
-            className="input"
-            value={experience}
-            onChange={(e) => setExperience(e.target.value)}
-            placeholder="Entry Level, Mid Level, Senior Level"
-          />
-        </div>
-      </div>
-
-      <button className="primaryButton" onClick={startInterview} disabled={loading}>
-        {loading ? "Starting..." : "Start Interview"}
-      </button>
-
-      {error && <div className="error">{error}</div>}
-
-      {question && (
-        <>
-          <div className="questionCard">
-            <div className="miniLabel">Current Question</div>
-            <div className="questionText">{question}</div>
+        <section className="panel">
+          <div className="panelHeader">
+            <h2 className="panelTitle">Interview Setup</h2>
+            <p className="panelText">
+              Make it as specific as you want. Examples: Tesla, Backend Engineer,
+              DBMS, Mid Level.
+            </p>
           </div>
 
-          <div className="voicePanel">
-            <div className="rowBetween">
-              <div>
-                <div className="sectionTitle">Your Response</div>
-                <div className="helperText">Type your answer or use the mic.</div>
+          <div className="grid">
+            <div>
+              <label className="label">Company</label>
+              <input
+                className="input"
+                value={company}
+                onChange={(e) => setCompany(e.target.value)}
+                placeholder="Google, Tesla, NVIDIA, Stripe..."
+              />
+            </div>
+
+            <div>
+              <label className="label">Role</label>
+              <input
+                className="input"
+                value={role}
+                onChange={(e) => setRole(e.target.value)}
+                placeholder="Software Engineer, AI Engineer..."
+              />
+            </div>
+
+            <div>
+              <label className="label">Interview Type</label>
+              <input
+                className="input"
+                value={interviewType}
+                onChange={(e) => setInterviewType(e.target.value)}
+                placeholder="Theory, Coding, Behavioral, OOP, DBMS..."
+              />
+            </div>
+
+            <div>
+              <label className="label">Experience Level</label>
+              <input
+                className="input"
+                value={experience}
+                onChange={(e) => setExperience(e.target.value)}
+                placeholder="Entry Level, Mid Level, Senior Level"
+              />
+            </div>
+          </div>
+
+          <button
+            className="primaryButton"
+            onClick={startInterview}
+            disabled={loading}
+          >
+            {loading ? "Starting..." : "Start Interview"}
+          </button>
+
+          {error && <div className="error">{error}</div>}
+        </section>
+
+        {question && (
+          <>
+            <section className="questionCard">
+              <div className="miniLabel">Current Question</div>
+              <div className="questionText">{question}</div>
+            </section>
+
+            <section className="voicePanel">
+              <div className="rowBetween">
+                <div>
+                  <div className="sectionTitle">Your Response</div>
+                  <div className="helperText">Type your answer or use the mic.</div>
+                </div>
+
+                <div className="audioActions">
+                  <button
+                    onClick={isListening ? stopListening : startListening}
+                    className={`micMainButton ${isListening ? "micActive" : ""}`}
+                  >
+                    {isListening ? "Stop Listening 🎙️" : "Speak Answer 🎤"}
+                  </button>
+                </div>
               </div>
 
-              <div className="audioActions">
+              <textarea
+                className="textarea"
+                placeholder="Type your answer..."
+                value={answer}
+                onChange={(e) => setAnswer(e.target.value)}
+              />
+
+              <div className="buttonRow">
                 <button
-                  onClick={isListening ? stopListening : startListening}
-                  className={`micMainButton ${isListening ? "micActive" : ""}`}
+                  className="primaryButton halfButton"
+                  onClick={submitAnswer}
+                  disabled={loading}
                 >
-                  {isListening ? "Stop Listening 🎙️" : "Speak Answer 🎤"}
+                  {loading ? "Submitting..." : "Submit Answer"}
+                </button>
+
+                <button
+                  className="skipButton halfButton"
+                  onClick={skipQuestion}
+                  disabled={loading}
+                >
+                  {loading ? "Loading..." : "Skip Question"}
                 </button>
               </div>
-            </div>
-
-            <textarea
-              className="textarea"
-              placeholder="Type your answer..."
-              value={answer}
-              onChange={(e) => setAnswer(e.target.value)}
-            />
-
-            <div className="buttonRow">
-              <button
-                className="primaryButton halfButton"
-                onClick={submitAnswer}
-                disabled={loading}
-              >
-                {loading ? "Submitting..." : "Submit Answer"}
-              </button>
-
-              <button
-                className="skipButton halfButton"
-                onClick={skipQuestion}
-                disabled={loading}
-              >
-                {loading ? "Loading..." : "Skip Question"}
-              </button>
-            </div>
-          </div>
-        </>
-      )}
-
-      {(score || feedback || betterAnswer || nextQuestion) && (
-        <div className="feedbackGrid">
-          {score && (
-            <div className="feedbackCard">
-              <div className="feedbackLabel">Score</div>
-              <div className="scoreValue">{score}</div>
-            </div>
-          )}
-
-          {feedback && (
-            <div className="feedbackCard">
-              <div className="feedbackLabel">Feedback</div>
-              <div className="feedbackValue">{feedback}</div>
-            </div>
-          )}
-
-          {betterAnswer && (
-            <div className="feedbackCard feedbackFull">
-              <div className="feedbackLabel">Better Answer</div>
-              <div className="feedbackValue">{betterAnswer}</div>
-            </div>
-          )}
-
-          {nextQuestion && (
-            <div className="feedbackCard feedbackFull">
-              <div className="feedbackLabel">Next Question</div>
-              <div className="feedbackValue">{nextQuestion}</div>
-            </div>
-          )}
-        </div>
-      )}
-
-      <div className="topActionRow">
-        <button className="secondaryActionButton" onClick={resetInterview}>
-          Reset Interview
-        </button>
-      </div>
-
-      <div className="panel">
-        <div className="panelHeader">
-          <div className="panelTitle">Interview History</div>
-          <div className="panelText">
-            Track your questions, answers, feedback, and follow-up prompts.
-          </div>
-        </div>
-
-        {history.length === 0 ? (
-          <div className="placeholder">No interview history yet.</div>
-        ) : (
-          <div className="historyBox">
-            {history.map((item, index) => {
-              let className = "historyItem";
-
-              if (item.startsWith("AI:")) className += " questionHistory";
-              else if (item.startsWith("You:")) className += " answerHistory";
-              else if (
-                item.startsWith("Score:") ||
-                item.startsWith("Feedback:") ||
-                item.startsWith("Better Answer:") ||
-                item.startsWith("Next Question:")
-              ) {
-                className += " feedbackHistory";
-              } else {
-                className += " skipHistory";
-              }
-
-              return (
-                <div key={index} className={className}>
-                  {item}
-                </div>
-              );
-            })}
-          </div>
+            </section>
+          </>
         )}
+
+        {(score || feedback || betterAnswer || nextQuestion) && (
+          <section className="feedbackGrid">
+            {score && (
+              <div className="feedbackCard">
+                <div className="feedbackLabel">Score</div>
+                <div className="scoreValue">{score}</div>
+              </div>
+            )}
+
+            {feedback && (
+              <div className="feedbackCard">
+                <div className="feedbackLabel">Feedback</div>
+                <div className="feedbackValue">{feedback}</div>
+              </div>
+            )}
+
+            {betterAnswer && (
+              <div className="feedbackCard feedbackFull">
+                <div className="feedbackLabel">Better Answer</div>
+                <div className="feedbackValue">{betterAnswer}</div>
+              </div>
+            )}
+
+            {nextQuestion && (
+              <div className="feedbackCard feedbackFull">
+                <div className="feedbackLabel">Next Question</div>
+                <div className="feedbackValue">{nextQuestion}</div>
+              </div>
+            )}
+          </section>
+        )}
+
+        <div className="topActionRow">
+          <button className="secondaryActionButton" onClick={resetInterview}>
+            Reset Interview
+          </button>
+        </div>
+
+        <section className="panel">
+          <div className="panelHeader">
+            <h2 className="panelTitle">Interview History</h2>
+            <p className="panelText">
+              Track your questions, answers, feedback, and follow-up prompts.
+            </p>
+          </div>
+
+          {history.length === 0 ? (
+            <div className="placeholder">No interview history yet.</div>
+          ) : (
+            <div className="historyBox">
+              {history.map((item, index) => {
+                let className = "historyItem";
+
+                if (item.startsWith("AI:")) className += " questionHistory";
+                else if (item.startsWith("You:")) className += " answerHistory";
+                else if (
+                  item.startsWith("Score:") ||
+                  item.startsWith("Feedback:") ||
+                  item.startsWith("Better Answer:") ||
+                  item.startsWith("Next Question:")
+                ) {
+                  className += " feedbackHistory";
+                } else {
+                  className += " skipHistory";
+                }
+
+                return (
+                  <div key={index} className={className}>
+                    {item}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
       </div>
-    </div>
+    </main>
   );
 }
