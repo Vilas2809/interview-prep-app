@@ -24,7 +24,7 @@ app = FastAPI(title="Interview Prep API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://interview-prep-ai.vercel.app"],
+    allow_origins=["https://interview-prep-app-steel.vercel.app"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
