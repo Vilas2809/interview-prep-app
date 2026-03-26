@@ -195,7 +195,7 @@ export default function Home() {
     stopListening();
 
     try {
-      const res = await fetch(`${API_URL}/mock_interview/answer`, {
+      const res = await fetch(`${API_URL}/mock-interview/answer`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -260,7 +260,7 @@ export default function Home() {
   };
 
   const skipQuestion = async () => {
-    if (!question.trim()) {
+    if (!question?.trim()) {
       setError("No current question to skip.");
       return;
     }
@@ -269,8 +269,16 @@ export default function Home() {
     setError("");
     stopListening();
 
+    console.log("Skipn payload:",{
+      company,
+      role,
+      interviewType,
+      experience,
+      question,
+    })
+
     try {
-      const res = await fetch(`${API_URL}/mock_interview/next`, {
+      const res = await fetch(`${API_URL}/mock-interview/next`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -280,13 +288,14 @@ export default function Home() {
           role,
           interview_type: interviewType,
           experience_level: experience,
-          previous_question: question,
+          previous_question: question || "",
         }),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
+        console.error("Skip Question Error:", data);
         throw new Error(data.detail || "Failed to skip question");
       }
 
