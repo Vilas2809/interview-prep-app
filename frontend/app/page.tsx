@@ -195,7 +195,7 @@ export default function Home() {
     stopListening();
 
     try {
-      const res = await fetch(`${API_URL}/answer`, {
+      const res = await fetch(`${API_URL}/mock_interview/answer`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -270,7 +270,7 @@ export default function Home() {
     stopListening();
 
     try {
-      const res = await fetch(`${API_URL}/next`, {
+      const res = await fetch(`${API_URL}/mock_interview/next`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
