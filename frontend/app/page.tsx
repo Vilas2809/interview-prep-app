@@ -300,7 +300,12 @@ export default function Home() {
       }
 
       setQuestion(data.question);
+      setQuestionNumber((prev) => prev + 1);
+      setTimeLeft(QUESTION_TIME_SECONDS);
       setAnswer("");
+      setScore("");
+      setFeedback("");
+      setBetterAnswer("");
       clearEvaluation();
       setPendingNextQuestion("");
       setShowNextButton(false);
