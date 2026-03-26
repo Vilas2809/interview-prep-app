@@ -52,6 +52,30 @@ export default function Home() {
     return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
   };
 
+  const clearEvaluation = () => {
+    setScore("");
+    setFeedback("");
+    setBetterAnswer("");
+  };
+
+  const resetInterview = () => {
+    stopListening();
+    setQuestion("");
+    setPendingNextQuestion("");
+    setAnswer("");
+    setHistory([]);
+    setError("");
+    setScore("");
+    setFeedback("");
+    setBetterAnswer("");
+    setInterviewStarted(false);
+    setQuestionNumber(0);
+    setTimeLeft(QUESTION_TIME_SECONDS);
+    setShowNextButton(false);
+    setInterviewCompleted(false);
+    setLoading(false);
+  };
+
   useEffect(() => {
     if (!interviewStarted || !question || showNextButton || interviewCompleted) return;
 
@@ -116,29 +140,6 @@ export default function Home() {
   const stopListening = () => {
     recognitionRef.current?.stop();
     setIsListening(false);
-  };
-
-  const resetInterview = () => {
-    stopListening();
-    setQuestion("");
-    setPendingNextQuestion("");
-    setAnswer("");
-    setHistory([]);
-    setError("");
-    setScore("");
-    setFeedback("");
-    setBetterAnswer("");
-    setInterviewStarted(false);
-    setQuestionNumber(0);
-    setTimeLeft(QUESTION_TIME_SECONDS);
-    setShowNextButton(false);
-    setInterviewCompleted(false);
-  };
-
-  const clearEvaluation = () => {
-    setScore("");
-    setFeedback("");
-    setBetterAnswer("");
   };
 
   const startInterview = async () => {
@@ -232,6 +233,8 @@ export default function Home() {
         `Better Answer: ${result.better_answer || ""}`,
         `Next Question: ${result.next_question || ""}`,
       ]);
+
+      setAnswer("");
     } catch (err: any) {
       setError(err.message || "Failed to submit answer");
     } finally {
@@ -240,6 +243,8 @@ export default function Home() {
   };
 
   const handleNextQuestion = () => {
+    if (!pendingNextQuestion) return;
+
     if (questionNumber >= TOTAL_QUESTIONS) {
       setInterviewCompleted(true);
       setShowNextButton(false);
@@ -249,14 +254,16 @@ export default function Home() {
       return;
     }
 
-    setQuestion(pendingNextQuestion);
-    setAnswer("");
-    clearEvaluation();
+    const nextQ = pendingNextQuestion;
+
+    setQuestion(nextQ);
     setPendingNextQuestion("");
     setShowNextButton(false);
-    setQuestionNumber((prev) => prev + 1);
+    setAnswer("");
+    clearEvaluation();
     setTimeLeft(QUESTION_TIME_SECONDS);
-    setHistory((prev) => [...prev, `AI: ${pendingNextQuestion}`]);
+    setQuestionNumber((prev) => prev + 1);
+    setHistory((prev) => [...prev, `AI: ${nextQ}`]);
   };
 
   const skipQuestion = async () => {
@@ -265,17 +272,14 @@ export default function Home() {
       return;
     }
 
+    if (questionNumber >= TOTAL_QUESTIONS) {
+      setInterviewCompleted(true);
+      return;
+    }
+
     setLoading(true);
     setError("");
     stopListening();
-
-    console.log("Skipn payload:",{
-      company,
-      role,
-      interviewType,
-      experience,
-      question,
-    })
 
     try {
       const res = await fetch(`${API_URL}/mock-interview/next`, {
@@ -295,7 +299,7 @@ export default function Home() {
       const data = await res.json();
 
       if (!res.ok) {
-        console.error("Skip Question Error:", data);
+        console.error("Skip API error:", data);
         throw new Error(data.detail || "Failed to skip question");
       }
 
@@ -303,13 +307,9 @@ export default function Home() {
       setQuestionNumber((prev) => prev + 1);
       setTimeLeft(QUESTION_TIME_SECONDS);
       setAnswer("");
-      setScore("");
-      setFeedback("");
-      setBetterAnswer("");
-      clearEvaluation();
       setPendingNextQuestion("");
       setShowNextButton(false);
-      setTimeLeft(QUESTION_TIME_SECONDS);
+      clearEvaluation();
 
       setHistory((prev) => [...prev, `Skipped Question`, `AI: ${data.question}`]);
     } catch (err: any) {
